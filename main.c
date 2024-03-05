@@ -16,11 +16,15 @@
 // Libusb context
 libusb_context *ctx = NULL;
 
-/* fn : fx2_reset
- * param devHandle : a pointer to libusb_device_handle struct
- * param reset : true = put FX2LP in reset state
+// Global usb device handle
+libusb_device_handle *g_usbDevHandle = NULL;
+
+
+/* @fn : fx2_reset
+ * @param devHandle : a pointer to libusb_device_handle struct
+ * @param reset : true = put FX2LP in reset state
  * 				 false = put FX2LP to run mode
- * return true : reset success
+ * @return true : reset success
  *		  false : reset failed
  */
 bool fx2_reset(libusb_device_handle *devHandle, bool reset) {
@@ -31,6 +35,27 @@ bool fx2_reset(libusb_device_handle *devHandle, bool reset) {
 	rv = libusb_control_transfer(devHandle, LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
 								 CMD_FX2LP_REQUEST, CPUCS_ADDR, 0/*wIndex*/, &cpucs, sizeof(cpucs), TIMEOUT);
 	return (rv == 1 ? true : false);
+}
+
+bool fx2_open(int vid, int pid) {
+	libusb_device **usb_devices;
+	int rv, count;
+
+	count = libusb_get_device_list(ctx, &usb_devices);
+	printf("Devices count:%d\n", count);
+
+	for(int i=0; i<count; i++) {
+		libusb_device *dev = usb_devices[i];
+		struct libusb_device_descriptor devDesc;
+
+		rc = libusb_get_device_descriptor(dev, &devDesc);
+		if(rc != 0) printf("Failed to get device descriptor\n");
+
+		
+	}
+
+	libusb_free_device_list(usb_devices, 1);
+	return true;
 }
 
 int usb_write(libusb_device_handle *devHandle, const char *label,
@@ -49,7 +74,8 @@ int main(int argc, char *argv[]) {
 		printf("Error : %s\n", libusb_error_name(status));
 		return -status;
 	}
-
+	fx2_open(FX2LP_VID, FX2LP_PID);
+	
 	devHandle = libusb_open_device_with_vid_pid(ctx, FX2LP_VID, FX2LP_PID);
 	if(devHandle == NULL) {
 		printf("Error, could not find USB device with 0x%04x:0x%04x\n", FX2LP_VID, FX2LP_PID);
