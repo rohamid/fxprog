@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <string.h>
 
 #include <libusb-1.0/libusb.h>
 
@@ -37,7 +38,84 @@ bool fx2_reset(libusb_device_handle *devHandle, bool reset) {
 	return (rv == 1 ? true : false);
 }
 
-bool fx2_open(int vid, int pid) {
+int ihex_read(FILE *pFile, unsigned char *buf, unsigned int start, unsigned int end) {
+	static char line[523];
+	fseek(pFile, 0, SEEK_SET);
+
+	unsigned int i, byte, line_no = 0, greatest_addr = 0, offset = 0, chunk_len, chunk_addr, chunk_type;
+	while(fgets(line, sizeof(line), pFile)) {
+		line_no++;
+
+		// Strip off carriage return at the end of line if it exists.
+		if(line[strlen(line)] == '\r') {
+			line[strlen(line)] = 0;
+		}
+
+		// Reading chunk header
+		if(sscanf(line, ":%02x%04x%02x", &chunk_len, &chunk_addr, &chunk_type) != 3) {
+			free(buf);
+			fprintf(stderr, "Error while parsing IHEX at line %d\n", line_no);
+			return(-1);
+		}
+		// Reading chunk data
+		if(chunk_type == 2) { // Extended segment address
+			unsigned int esa;
+			if(sscanf(&line[9], "%04x", &esa) != 1) {
+				free(buf);
+				fprintf(stderr, "Error while parsing IHEX at line %d\n", line_no);
+				return(-1);
+			}
+			offset = esa * 16;
+		}
+		if(chunk_type == 4) { // Extended linear address
+			unsigned int ela;
+			if(sscanf(&line[9], "%04x", &ela) != 1) {
+				free(buf);
+				fprintf(stderr, "Error while parsing IHEX at line %d\n", line_no);
+				return(-1);
+			}
+			offset = ela * 65536;
+		}
+
+		for(i = 9; i < strlen(line)- 1; i+=2) {
+			if(sscanf(&line[i], "%02x", &byte) != 1) {
+				free(buf);
+				fprintf(stderr, "Error while parsing IHEX at line %d\n", line_no);
+				return(-1);
+			}
+
+			// The only data record have to be processed
+			if(chunk_type != 0x00) {
+				break;
+			}
+
+			if((i - 9) / 2 >= chunk_len) {
+				// Respect chunk_len and do not capture checksum as data
+				break;
+			}
+
+			if((chunk_addr + offset) < start) {
+				free(buf);
+				fprintf(stderr, "Address %04x is out of range at line %d\n", chunk_addr, line_no);
+				return(-1);
+			}
+
+			if((chunk_addr + offset + chunk_len) > end) {
+				free(buf);
+				fprintf(stderr, "Addres %04x + %d is out of range at line %d\n", chunk_addr, chunk_len, line_no);
+				return(-1);
+			}
+
+			if(chunk_addr + offset + chunk_len > greatest_addr) {
+				greatest_addr = chunk_addr + offset + chunk_len;
+			}
+			buf[chunk_addr + offset - start + (i -9) / 2] = byte;
+		}
+	}
+	return(greatest_addr - start);
+}
+
+	bool fx2_open(int vid, int pid) {
 	libusb_device **usb_devices;
 	int rv, count;
 
@@ -48,8 +126,8 @@ bool fx2_open(int vid, int pid) {
 		libusb_device *dev = usb_devices[i];
 		struct libusb_device_descriptor devDesc;
 
-		rc = libusb_get_device_descriptor(dev, &devDesc);
-		if(rc != 0) printf("Failed to get device descriptor\n");
+		rv = libusb_get_device_descriptor(dev, &devDesc);
+		if(rv != 0) printf("Failed to get device descriptor\n");
 
 		
 	}
