@@ -1,5 +1,6 @@
 TARGET := fxprog
-SRCS := main.c
+SRCS := main.c \
+		ihex.c
 
 # Compiler used 
 CC = gcc	
@@ -9,13 +10,21 @@ CC = gcc
 CFLAGS = -g -Wall	
 LIBUSB_FLAG = -lusb-1.0
 
+# Define object files
+OBJS = $(SRCS:.c=.o)
+
 # build executable 
 all: $(TARGET)
 
-$(TARGET): $(SRCS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(SRCS) $(LIBUSB_FLAG)
+# Rule to link the object files and create the executable
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(LIBUSB_FLAG)
+
+# Rule to compile .c files into .o files
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
 .PHONY: clean
 
 clean:
-	$(RM) $(TARGET)
+	rm -f $(OBJS) $(TARGET)
