@@ -11,8 +11,10 @@
 
 typedef struct {
 	unsigned int address;
-	unsigned char *data;
 	int length;
+	int type;
+	unsigned char *data;
+	unsigned int checkSum;
 }hex_record_t;
 
 int ihex_get_data_size(const char *filePath, unsigned int *dataSize);

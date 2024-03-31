@@ -1,5 +1,35 @@
 #include "ihex.h"
 
+#define HI(x)	(((x) & 0xff00) >> 8)
+#define LO(x)	((x) & 0xff)
+
+static inline unsigned char ihex_get_checksum(const char *record) {
+	int recordLen = strlen(record);
+	unsigned char checksum = 0;
+
+	// Skip the colon at the beginning of the record
+	// Also skip the last 3 bytes. It contain the checksum itself and null terminated.
+	for(int i = 1; i < recordLen - 3; i += 2) {
+		// Convert two characters representing a byte into an actual byte
+		char byte_str[3] = {record[i], record[i+1], '\0'};
+		unsigned char byte = (unsigned char)strtol(byte_str, NULL, 16);
+
+		// Add the byte to the checksum
+		checksum += byte;
+	}
+
+	// Take the one's complement
+	checksum = ~checksum;
+
+	// Add 1 to obtain the two's complement
+	checksum += 1;
+
+	return checksum;
+
+	// Or just do this instead
+	//return (~checksum) + 1;
+}
+
 /*
  * @brief calculate data size of given ihex file
  */
@@ -64,12 +94,17 @@ int ihex_parse_record(char *line, hex_record_t *record) {
 	// Populate record fields
 	record->address = address;
 	record->length = byteCount;
-
-	line++;
+	record->type = recordType;
+	
 	
 	// Parse data bytes
 	for(i = 0; i < byteCount; i++) {
-		sscanf(line + 8 + i * 2, "%2x", &record->data[i]);
+		sscanf(line + 9 + i * 2, "%2x", &record->data[i]);
+	}
+
+	if(sscanf(line+9+byteCount*2, "%2x", &record->checkSum) != 1) {
+		printf("Failed to get line checksum!\n");
+		return(-1);
 	}
 
 	return(0); 	// Parsing succesfull
@@ -97,6 +132,8 @@ void ihex_dump_file(const char *fileName) {
 			for(int i = 0; i < record.length; i++) {
 				printf("%02x ", record.data[i]);
 			}
+			//printf("SUM: %2x ", record.checkSum);
+			printf("SUM: %2x ", ihex_get_checksum(line));
 			printf("\n");
 
 			// Free memory allocated for data
