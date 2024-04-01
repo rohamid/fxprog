@@ -7,7 +7,6 @@
 /*
  * @brief calculate record's checksum
  */
-//static unsigned char ihex_get_checksum(const char *record) {
 static unsigned char ihex_get_checksum(hex_record_t *record) {
 	unsigned char checksum = record->length + record->address + (record->address >> 8) + record->type;
 
@@ -16,33 +15,6 @@ static unsigned char ihex_get_checksum(hex_record_t *record) {
 	}
 
 	return (~checksum) + 1;
-	/*
-	int recordLen = strlen(record);
-	unsigned char checksum = 0;
-
-	// Skip the colon at the beginning of the record
-	// Also skip the last 3 bytes.It contain the checksum,
-	// and null terminated character.
-	for(int i = 1; i < recordLen - 3; i += 2) {
-		// Convert two characters representing a byte into an actual byte
-		char byte_str[3] = {record[i], record[i+1], '\0'};
-		unsigned char byte = (unsigned char)strtol(byte_str, NULL, 16);
-
-		// Add the byte to the checksum
-		checksum += byte;
-	}
-
-	// Take the one's complement
-	checksum = ~checksum;
-
-	// Add 1 to obtain the two's complement
-	checksum += 1;
-
-	return checksum;
-
-	// Or just do this instead
-	//return (~checksum) + 1;
-	*/
 }
 
 /*
@@ -53,21 +25,21 @@ int ihex_get_data_size(const char *filePath, unsigned int *dataSize) {
 	static char lineBuff[523];
 
 	// Open ihex file
-	FILE *ihex = fopen(filePath, "r");
-	if(ihex == NULL) {
+	FILE *pFile = fopen(filePath, "r");
+	if(pFile == NULL) {
 		fprintf(stderr, "Error opening IHEX file\n");
 		return(1);
 	}
 
 	// Read ihex file line by line
-	while(fgets(lineBuff, sizeof(lineBuff), ihex)) {
+	while(fgets(lineBuff, sizeof(lineBuff), pFile)) {
 		// Ignore char but ':', as ':' is the first character 
 		// ihex specifier
 		if(sscanf(lineBuff, ":%02x", &chunkSize) != 1) {
 			fprintf(stderr, "Error while parsing IHEX at line %d\n", line);
-			if(ihex) {
-				rewind(ihex);
-				fclose(ihex);
+			if(pFile) {
+				rewind(pFile);
+				fclose(pFile);
 				return(1);
 			}
 		}
@@ -76,13 +48,16 @@ int ihex_get_data_size(const char *filePath, unsigned int *dataSize) {
 		line++;
 	}
 	// Close and put the file pointer to the 1st location
-	if(ihex) {
-		rewind(ihex);
-		fclose(ihex);
+	if(pFile) {
+		rewind(pFile);
+		fclose(pFile);
 	}
 	return(0);
 }
 
+/*
+ * @brief parsing single line of ihex record, save the result to hex_record_t 
+ */
 int ihex_parse_record(const char *line, hex_record_t *record) {
 	int byteCount, recordType;
 	unsigned int address;
@@ -113,22 +88,31 @@ int ihex_parse_record(const char *line, hex_record_t *record) {
 
 	// Parse data bytes
 	for(i = 0; i < byteCount; i++) {
-		sscanf(line + 9 + i * 2, "%2x", &record->data[i]);
+		if(sscanf(line + 9 + i * 2, "%2x", (unsigned int*)&record->data[i]) != 1) {
+			printf("Failed to get data!\n");
+			free(record->data);
+			return(-1);
+		}
 	}
-
+	// Parse checksum
 	if(sscanf(line+9+byteCount*2, "%2x", &record->checksum) != 1) {
 		printf("Failed to get line checksum!\n");
+		free(record->data);
 		return(-1);
 	}
-
+	// Compare checksum
 	if(record->checksum != ihex_get_checksum(record)) {
 		printf("Failed: checksum missmatch!\n");
+		free(record->data);
 		return(-1);
 	}
 
 	return(0); 	// Parsing succesfull
 }
 
+/*
+ * @brief dump ihex file
+ */
 void ihex_dump_file(const char *fileName) {
 	FILE *pFile;
 	char line[MAX_RECORD_SIZE];
@@ -158,22 +142,6 @@ void ihex_dump_file(const char *fileName) {
 				}
 			}
 
-			/*
-			// Dump record contents
-			printf("Line %d [0x%04x] ", lineNumber, record.address);
-			for(int i = 0; i < record.length; i++) {
-				if(i % 4 == 0 && i != 0) {
-					printf("%02x\n", record.data[i]);
-				} else {
-					printf("%02x ", record.data[i]);
-				}
-			}
-			//printf("SUM: %2x ", record.checkSum);
-			printf("SUM: %2x ", ihex_get_checksum(&record));
-			printf("\n");
-			*/
-
-			// Free memory allocated for data
 			free(record.data);
 		} else {
 			printf("ihex_dump_file: Error parsing line %d: Not a valid Intel HEX record\n", lineNumber);

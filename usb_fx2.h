@@ -4,11 +4,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <time.h>
-#include <unistd.h>
 #include <libusb-1.0/libusb.h>
 #include "ihex.h"
-
 
 #define FX2LP_CMD_REQUEST		0xA0
 #define FX2LP_CPUCS_ADDR		0xE600
