@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <time.h>
+#include <unistd.h>
 #include <libusb-1.0/libusb.h>
 #include "ihex.h"
 

@@ -79,7 +79,10 @@ bool fx2_send_reset(libusb_device_handle *devHandle, bool reset) {
 	int rv = 0;	// libusb return status
 	uint8_t cpucs = reset;	// Reset state
 
-	rv = fx2_write_ram(devHandle, FX2LP_CPUCS_ADDR, &cpucs, 1);
+	rv = libusb_control_transfer(devHandle, LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
+										 FX2LP_CMD_REQUEST, FX2LP_CPUCS_ADDR/*wValue*/, 0/*wIndex*/, &cpucs/*data*/, 1/*wLength*/, FX2LP_CONTROL_TIMEOUT/*timeout*/);
+
+	//rv = fx2_write_ram(devHandle, FX2LP_CPUCS_ADDR, &cpucs, 1);
 	return(rv == 0 ? true : false);
 }
 
@@ -94,7 +97,8 @@ int fx2_write_ihex_line(libusb_device_handle *devHandle, const char *lineRecord)
 	if(rv != 0) {
 		printf("Failed to write line record!\n");
 	}
-
+	// free allocated memory
+	free(parseRecord.data);
 	return 0;
 }
 
@@ -120,6 +124,8 @@ int fx2_write_ihex(libusb_device_handle *devHandle, const char *filePath) {
 
 		lineCount++;
 	}
+	printf("Done writing\n");
+	//sleep(5);
 	fx2_send_reset(devHandle, false);
 
 	rewind(pFile);
