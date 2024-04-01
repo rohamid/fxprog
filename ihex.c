@@ -3,12 +3,26 @@
 #define HI(x)	(((x) & 0xff00) >> 8)
 #define LO(x)	((x) & 0xff)
 
-static inline unsigned char ihex_get_checksum(const char *record) {
+
+/*
+ * @brief calculate record's checksum
+ */
+//static unsigned char ihex_get_checksum(const char *record) {
+static unsigned char ihex_get_checksum(hex_record_t *record) {
+	unsigned char checksum = record->length + record->address + (record->address >> 8) + record->type;
+
+	for(int i = 0; i < record->length; i++) {
+		checksum += record->data[i];
+	}
+
+	return (~checksum) + 1;
+	/*
 	int recordLen = strlen(record);
 	unsigned char checksum = 0;
 
 	// Skip the colon at the beginning of the record
-	// Also skip the last 3 bytes. It contain the checksum itself and null terminated.
+	// Also skip the last 3 bytes.It contain the checksum,
+	// and null terminated character.
 	for(int i = 1; i < recordLen - 3; i += 2) {
 		// Convert two characters representing a byte into an actual byte
 		char byte_str[3] = {record[i], record[i+1], '\0'};
@@ -28,6 +42,7 @@ static inline unsigned char ihex_get_checksum(const char *record) {
 
 	// Or just do this instead
 	//return (~checksum) + 1;
+	*/
 }
 
 /*
@@ -68,7 +83,7 @@ int ihex_get_data_size(const char *filePath, unsigned int *dataSize) {
 	return(0);
 }
 
-int ihex_parse_record(char *line, hex_record_t *record) {
+int ihex_parse_record(const char *line, hex_record_t *record) {
 	int byteCount, recordType;
 	unsigned int address;
 	int i;
@@ -95,15 +110,19 @@ int ihex_parse_record(char *line, hex_record_t *record) {
 	record->address = address;
 	record->length = byteCount;
 	record->type = recordType;
-	
-	
+
 	// Parse data bytes
 	for(i = 0; i < byteCount; i++) {
 		sscanf(line + 9 + i * 2, "%2x", &record->data[i]);
 	}
 
-	if(sscanf(line+9+byteCount*2, "%2x", &record->checkSum) != 1) {
+	if(sscanf(line+9+byteCount*2, "%2x", &record->checksum) != 1) {
 		printf("Failed to get line checksum!\n");
+		return(-1);
+	}
+
+	if(record->checksum != ihex_get_checksum(record)) {
+		printf("Failed: checksum missmatch!\n");
 		return(-1);
 	}
 
@@ -127,14 +146,32 @@ void ihex_dump_file(const char *fileName) {
 	while(fgets(line, MAX_RECORD_SIZE, pFile) != NULL) {
 		lineNumber++;
 		if(ihex_parse_record(line, &record) == 0) {
+			printf("[0x%04x] ", record.address);
+
+			for(int i=0; i<record.length; i++) {
+				printf("0x%02x ", record.data[i]);
+
+				if((i + 1) % 16 == 0 || (i + 1) == record.length) {
+					printf("\n");
+					if((i + 1) != record.length)
+						printf("[0x%04x] ", record.address + (i + 1));
+				}
+			}
+
+			/*
 			// Dump record contents
-			printf("ihex_dump_file: Line %d - Address: 0x%04x, Length: %d bytes, Data: ", lineNumber, record.address, record.length);
+			printf("Line %d [0x%04x] ", lineNumber, record.address);
 			for(int i = 0; i < record.length; i++) {
-				printf("%02x ", record.data[i]);
+				if(i % 4 == 0 && i != 0) {
+					printf("%02x\n", record.data[i]);
+				} else {
+					printf("%02x ", record.data[i]);
+				}
 			}
 			//printf("SUM: %2x ", record.checkSum);
-			printf("SUM: %2x ", ihex_get_checksum(line));
+			printf("SUM: %2x ", ihex_get_checksum(&record));
 			printf("\n");
+			*/
 
 			// Free memory allocated for data
 			free(record.data);

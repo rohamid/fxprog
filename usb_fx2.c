@@ -1,5 +1,6 @@
 #include "usb_fx2.h"
 
+#define DEBUG
 
 /*
  * @brief check if fx2 is open
@@ -81,3 +82,50 @@ bool fx2_send_reset(libusb_device_handle *devHandle, bool reset) {
 	rv = fx2_write_ram(devHandle, FX2LP_CPUCS_ADDR, &cpucs, 1);
 	return(rv == 0 ? true : false);
 }
+
+int fx2_write_ihex_line(libusb_device_handle *devHandle, const char *lineRecord) {
+	hex_record_t parseRecord = {0};
+	int rv = ihex_parse_record(lineRecord, &parseRecord);
+	if(rv != 0) {
+		printf("Failed to parse record!\n");
+	}
+
+	rv = fx2_write_ram(devHandle, parseRecord.address, parseRecord.data, parseRecord.length);
+	if(rv != 0) {
+		printf("Failed to write line record!\n");
+	}
+
+	return 0;
+}
+
+int fx2_write_ihex(libusb_device_handle *devHandle, const char *filePath) {
+	FILE *pFile = fopen(filePath, "r");
+	if(pFile == NULL) {
+		printf("Failed to open file %s!\n", filePath);
+		return 1;
+	}
+
+	char line[523];
+	int lineCount = 1;
+	fx2_send_reset(devHandle, true);
+	while(fgets(line, sizeof(line), pFile)) {
+		int rv = fx2_write_ihex_line(devHandle, line);
+		if(rv != 0) {
+			printf("Failed to write file at line [%d]!\n", lineCount);
+			if(pFile) {
+				fclose(pFile);
+				return -1;
+			}
+		}
+
+		lineCount++;
+	}
+	fx2_send_reset(devHandle, false);
+
+	rewind(pFile);
+	fclose(pFile);
+	return 0;
+}
+
+
+

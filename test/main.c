@@ -1,40 +1,42 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-// Function to calculate the checksum for an Intel HEX record
-unsigned char calculate_record_checksum(const char *record) {
-    int record_length = strlen(record);
-    unsigned char checksum = 0;
+typedef struct {
+    unsigned int address;
+    int length;
+    int type;
+    unsigned char *data;
+    unsigned int checkSum;
+} hex_record_t;
 
-    // Skip the colon at the beginning of the record
-    for (int i = 1; i < record_length - 3; i += 2) {
-        // Convert two characters representing a byte into an actual byte
-        char byte_str[3] = {record[i], record[i + 1], '\0'};
-        unsigned char byte = (unsigned char)strtol(byte_str, NULL, 16);
+void dump_hex_record(const hex_record_t *record) {
+    printf("[%04X] ", record->address);
 
-        // Add the byte to the checksum
-        checksum += byte;
+    for (int i = 0; i < record->length; i += 4) {
+        for (int j = 0; j < 4 && i + j * 2 < record->length; j++) {
+            printf("%02X%02X ", record->data[i + j * 2], record->data[i + j * 2 + 1]);
+        }
+
+        // Print newline after every 8 bytes
+        printf("\n");
+        if (i + 4 < record->length)
+            printf("[%04X] ", record->address + (i + 4));
     }
-
-    // Take the one's complement
-    checksum = ~checksum;
-
-    // Add 1 to obtain the two's complement
-    checksum += 1;
-
-    return checksum;
 }
 
 int main() {
-    // Example Intel HEX record
-    char ihex_record[] = ":020000040000FA\n";
+    // Example hex record
+    hex_record_t record = {
+        .address = 0x0200,
+        .length = 16,
+        .type = 0,
+        .data = (unsigned char[]) {0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x20, 0x77, 0x6F,
+                                   0x72, 0x6C, 0x64, 0x21, 0x20, 0x54, 0x68, 0x69},
+        .checkSum = 0x1234
+    };
 
-    // Calculate checksum
-    unsigned char checksum = calculate_record_checksum(ihex_record);
-
-    // Print checksum
-    printf("Checksum: 0x%02X\n", checksum);
+    // Dump hex record
+    dump_hex_record(&record);
 
     return 0;
 }
+

@@ -14,11 +14,11 @@ typedef struct {
 	int length;
 	int type;
 	unsigned char *data;
-	unsigned int checkSum;
+	unsigned int checksum;
 }hex_record_t;
 
 int ihex_get_data_size(const char *filePath, unsigned int *dataSize);
-int ihex_parse_record(char *line, hex_record_t *record);
+int ihex_parse_record(const char *line, hex_record_t *record);
 void ihex_dump_file(const char *fileName);
 
 

@@ -138,9 +138,9 @@ int main(int argc, char *argv[]) {
 	}
 	*/
 
-	ihex_dump_file(argv[1]);
+	//ihex_dump_file(argv[1]);
 
-	/*
+	
 	int status;
 	libusb_device_handle *devHandle = NULL;
 	libusb_device *dev = NULL;
@@ -154,10 +154,19 @@ int main(int argc, char *argv[]) {
 	
 	devHandle = libusb_open_device_with_vid_pid(ctx, FX2LP_VID, FX2LP_PID);
 	if(devHandle == NULL) {
-		printf("Error, could not find USB device with 0x%04x:0x%04x\n", FX2LP_VID, FX2LP_PID);
+		printf("Error at main, could not find USB device with 0x%04x:0x%04x\n", FX2LP_VID, FX2LP_PID);
 		return -1;
 	}
 	printf("Found USB device with 0x%04x:0x%04x\n", FX2LP_VID, FX2LP_PID);
+
+	int rv = fx2_write_ihex(devHandle, argv[1]);
+	if(rv != 0) {
+		printf("Failed to write file %s!\n",argv[1]);
+		libusb_close(devHandle);
+		libusb_exit(ctx);
+		return 1;
+	}
+	/*
 	dev = libusb_get_device(devHandle);
 
 	status = libusb_get_device_speed(dev);
