@@ -89,16 +89,16 @@ int main(int argc, char *argv[]) {
 	usb_init(&ctx);
 
 	// Open fx2lp
-	//if(!usb_open(&devHandle, ctx, FX2LP_VID, FX2LP_PID))
-	//	goto on_failed;
-	
+	if(!usb_open(&devHandle, &ctx, FX2LP_VID, FX2LP_PID))
+		goto on_failed;
+	/*
 	devHandle = libusb_open_device_with_vid_pid(ctx, FX2LP_VID, FX2LP_PID);
 	if(devHandle == NULL) {
 		printf("Error at main, could not find USB device with 0x%04x:0x%04x\n", FX2LP_VID, FX2LP_PID);
 		return -1;
 	}
 	printf("Found USB device with 0x%04x:0x%04x\n", FX2LP_VID, FX2LP_PID);
-	
+	*/
 	uint32_t fileSize = 0;
 	int fileStat = ihex_get_data_size(fileName, &fileSize);
 	if(fileStat != 0) {

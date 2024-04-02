@@ -21,41 +21,51 @@ void usb_init(libusb_context **ctx) {
 }
 
 bool usb_open(libusb_device_handle **devHandle, libusb_context **ctx, int vid, int pid) {
-	libusb_device **usb_devices;
-	int rc, count;
+	libusb_device **devs;
+	ssize_t cnt;
 
-	count = libusb_get_device_list(*ctx, &usb_devices);
-	usb_error_check(count, "libusb_get_device_list()");
+	// Get device list of USB devices
+	cnt = libusb_get_device_list(*ctx, &devs);
+	if(cnt < 0) {
+		fprintf(stderr, "Error getting device list\n");
+		libusb_exit(*ctx);
+		return -1;
+	}
 
-	for(int i = 0; i < count; i++) {
-		libusb_device *dev = usb_devices[i];
+	// Iterate through devices
+	for(ssize_t i = 0; i < cnt; i++) {
+		libusb_device *dev = devs[i];
 		struct libusb_device_descriptor desc;
+		int r = libusb_get_device_descriptor(dev, &desc);
+		if(r < 0) {
+			fprintf(stderr, "Error getting device list\n");
+			continue;
+		}
 
-		rc = libusb_get_device_descriptor(dev, &desc);
-		usb_error_check(rc, "libusb_get_device_descriptor()");
-
+		// Check VID and PID
 		if(desc.idVendor == vid && desc.idProduct == pid) {
-
-			rc = libusb_open(dev, devHandle);
-			usb_error_check(rc, "libusb_open()");
-			libusb_free_device_list(dev, 1);
-			return true;
+			// Open device
+			if(libusb_open(dev, devHandle) == 0) {
+				// Set auto-detach kernel driver option
+				if(libusb_set_auto_detach_kernel_driver(*devHandle, 1) != 0) {
+					fprintf(stderr, "Error setting auto-detach kernel driver option\n");
+				}
+				libusb_free_device_list(devs, 1); // Free device list
+				return true; 	// Success
+			} else {
+				fprintf(stderr, "Error opening USB device\n");
+				libusb_free_device_list(devs, 1); // Free device list
+				libusb_exit(*ctx);	// Exit libusb
+				return false;
+			}
 		}
 	}
 
-	libusb_free_device_list(usb_devices, 1);
-
-	if(!devHandle) {
-		return false;
-	}
-
-	libusb_set_auto_detach_kernel_driver(*devHandle, 1);
-
-	rc = libusb_claim_interface(*devHandle, 0);
-	usb_error_check(rc, "libsub_claim_interface()");
-
-	return true;
-
+	// Device not found
+	fprintf(stderr, "USB device not found\n");
+	libusb_free_device_list(devs, 1);	// Free device list
+	libusb_exit(*ctx);	// Exit libusb
+	return false;
 }
 
 void usb_close(libusb_device_handle *devHandle, libusb_context *ctx) {
