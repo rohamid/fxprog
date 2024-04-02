@@ -82,23 +82,23 @@ int main(int argc, char *argv[]) {
 	}
 
 
-	int status;
+	// usb device handle
 	libusb_device_handle *devHandle = NULL;
 
-	status = libusb_init(&ctx);
-	if(status != 0) {
-		printf("Error : %s\n", libusb_error_name(status));
-		return -status;
-	}
-	//fx2_open(FX2LP_VID, FX2LP_PID);
+	// Init libusb
+	usb_init(&ctx);
 
+	// Open fx2lp
+	//if(!usb_open(&devHandle, ctx, FX2LP_VID, FX2LP_PID))
+	//	goto on_failed;
+	
 	devHandle = libusb_open_device_with_vid_pid(ctx, FX2LP_VID, FX2LP_PID);
 	if(devHandle == NULL) {
 		printf("Error at main, could not find USB device with 0x%04x:0x%04x\n", FX2LP_VID, FX2LP_PID);
 		return -1;
 	}
 	printf("Found USB device with 0x%04x:0x%04x\n", FX2LP_VID, FX2LP_PID);
-
+	
 	uint32_t fileSize = 0;
 	int fileStat = ihex_get_data_size(fileName, &fileSize);
 	if(fileStat != 0) {
@@ -114,13 +114,11 @@ int main(int argc, char *argv[]) {
 	printf("Done!\n");
 
 	// Success
-	libusb_close(devHandle);
-	libusb_exit(ctx);
+	usb_close(devHandle, ctx);
 
 	return 0;
 
 on_failed:
-	libusb_close(devHandle);
-	libusb_exit(ctx);
+	usb_close(devHandle, ctx);
 	return 1;
 }
