@@ -2,7 +2,8 @@
 SRCS := main.c \
 		ihex.c \
 		usbdev.c \
-		usb_fx2.c
+		usb_fx2.c \
+		usb_benchmark.c
 
 # Compiler used
 CC = gcc

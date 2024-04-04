@@ -8,6 +8,7 @@
 #include "ihex.h"
 #include "usbdev.h"
 #include "usb_fx2.h"
+#include "usb_benchmark.h"
 
 #include <libusb-1.0/libusb.h>
 
@@ -28,27 +29,8 @@ libusb_context *ctx = NULL;
 // Global usb device handle
 libusb_device_handle *g_usbDevHandle = NULL;
 
-bool fx2_open(int vid, int pid) {
-	libusb_device **usb_devices;
-	int rv, count;
-
-	count = libusb_get_device_list(ctx, &usb_devices);
-	printf("Devices count:%d\n", count);
-
-	for(int i=0; i<count; i++) {
-		libusb_device *dev = usb_devices[i];
-		struct libusb_device_descriptor devDesc;
-
-		rv = libusb_get_device_descriptor(dev, &devDesc);
-		if(rv != 0) printf("Failed to get device descriptor\n");
-	}
-
-	libusb_free_device_list(usb_devices, 1);
-	return true;
-}
-
 void print_usage_and_exit() {
-	
+
 }
 
 void print_version_and_exit() {
@@ -60,7 +42,7 @@ int main(int argc, char *argv[]) {
 	int opt;
 	char *fileName = NULL;
 
-	while((opt = getopt(argc, argv, "f:i")) != -1) {
+	while((opt = getopt(argc, argv, "f:i:t")) != -1) {
 		switch (opt) {
 			case 'f':
 				fileName = optarg;
@@ -86,10 +68,10 @@ int main(int argc, char *argv[]) {
 	libusb_device_handle *devHandle = NULL;
 
 	// Init libusb
-	usb_init(&ctx);
+	usb_init(NULL);
 
 	// Open fx2lp
-	if(!usb_open(&devHandle, &ctx, FX2LP_VID, FX2LP_PID))
+	if(!usb_open(&devHandle, NULL, FX2LP_VID, FX2LP_PID))
 		goto on_failed;
 	/*
 	devHandle = libusb_open_device_with_vid_pid(ctx, FX2LP_VID, FX2LP_PID);
@@ -114,11 +96,11 @@ int main(int argc, char *argv[]) {
 	printf("Done!\n");
 
 	// Success
-	usb_close(devHandle, ctx);
+	usb_close(devHandle, NULL);
 
 	return 0;
 
 on_failed:
-	usb_close(devHandle, ctx);
+	usb_close(devHandle, NULL);
 	return 1;
 }
