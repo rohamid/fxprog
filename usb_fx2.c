@@ -96,7 +96,7 @@ bool fx2_send_reset(libusb_device_handle *devHandle, bool reset) {
 								 FX2LP_CONTROL_TIMEOUT/*timeout*/);
 
 	//rv = fx2_write_ram(devHandle, FX2LP_CPUCS_ADDR, &cpucs, 1);
-	return(rv == 0 ? true : false);
+	return(rv == 1 ? true : false);
 }
 
 /*
@@ -134,13 +134,20 @@ int fx2_write_ihex(libusb_device_handle *devHandle, const char *filePath) {
 	char line[523];
 	int lineCount = 1;
 	// Put fx2lp to the reset state
-	fx2_send_reset(devHandle, true);
+	if(!fx2_send_reset(devHandle, true)) {
+		printf("Failed to reset device\n");
+		fclose(pFile);
+		return -1;
+	}
 
 	while(fgets(line, sizeof(line), pFile)) {
 		int rv = fx2_write_ihex_line(devHandle, line);
 		if(rv != 0) {
 			printf("Failed to write file at line [%d]!\n", lineCount);
 			if(pFile) {
+				// Attempt to reset device to run state before exiting
+				fx2_send_reset(devHandle, false);
+
 				fclose(pFile);
 				return -1;
 			}
@@ -151,7 +158,12 @@ int fx2_write_ihex(libusb_device_handle *devHandle, const char *filePath) {
 	// printf("Done writing\n");
 
 	// Put fx2lp out of reset
-	fx2_send_reset(devHandle, false);
+	if(!fx2_send_reset(devHandle, false)) {
+		printf("Failed to exit reset state\n");
+		fclose(pFile);
+		return -1;
+	}
+
 
 	rewind(pFile);
 	fclose(pFile);

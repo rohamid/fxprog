@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
 	int opt;
 	char *fileName = NULL;
 
-	while((opt = getopt(argc, argv, "f:i:t")) != -1) {
+	while((opt = getopt(argc, argv, "f:i")) != -1) {
 		switch (opt) {
 			case 'f':
 				fileName = optarg;
@@ -68,10 +68,10 @@ int main(int argc, char *argv[]) {
 	libusb_device_handle *devHandle = NULL;
 
 	// Init libusb
-	usb_init(NULL);
+	usb_init(&ctx);
 
 	// Open fx2lp
-	if(!usb_open(&devHandle, NULL, FX2LP_VID, FX2LP_PID))
+	if(!usb_open(&devHandle, &ctx, FX2LP_VID, FX2LP_PID))
 		goto on_failed;
 	/*
 	devHandle = libusb_open_device_with_vid_pid(ctx, FX2LP_VID, FX2LP_PID);
@@ -96,11 +96,11 @@ int main(int argc, char *argv[]) {
 	printf("Done!\n");
 
 	// Success
-	usb_close(devHandle, NULL);
+	usb_close(devHandle, ctx);
 
 	return 0;
 
 on_failed:
-	usb_close(devHandle, NULL);
+	usb_close(devHandle, ctx);
 	return 1;
 }
